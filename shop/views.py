@@ -40,6 +40,15 @@ def purchase_product(request, pk):
 
     product = get_object_or_404(Product, pk=pk)
 
+    order = Order(
+        order_name = order_no,
+        product = product,
+        email = "testaaja@testi.fi",
+        paid = False
+    )
+    order.save()
+
+
     payload = {
         "version": "w3.2",
         "api_key": api_key,
@@ -85,4 +94,23 @@ def purchase_product(request, pk):
     return redirect(target_url)
 
 def purchase_succeeded(request):
-    return render(request, 'shop/success.html')
+    return_code = int(request.GET.get("RETURN_CODE"))
+
+    if return_code == 0:
+        print("Purchase succeeded")
+        order_no = request.GET.get("ORDER_NUMBER")
+        authcode_from_visma = request.GET.get("AUTHCODE")
+        settled = request.GET.get("SETTLED")
+
+        str_for_auth = str(return_code) + "|" + order_no + "|" + settled
+
+        my_authcode = generate_authcode(str_for_auth)
+
+        if authcode_from_visma == my_authcode:
+            order = Order.Objects.get(order_name=order_no)
+            order.paid= True
+            order.save()
+
+    context = { "return_code": return_code }
+
+    return render(request, 'shop/success.html', context)
